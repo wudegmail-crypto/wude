@@ -468,8 +468,8 @@ def extract_contract_data(main_df, sub_dfs, rules):
             src_df[contract_col] = src_df[contract_col].astype(str).str.strip()
             src_match = src_df[src_df[contract_col] == contract]
 
-            # v6: 次表1统计数量和单位时，筛除物资名称为"备品备件"和"专用工具"的行
-            if src_table == '次表1' and rule.get('_original_field') in ('数量', '单位'):
+            # v6: 次表1统计数量/单位/日期时，筛除物资名称为"备品备件"和"专用工具"的行
+            if src_table == '次表1' and rule.get('_original_field') in ('数量', '单位', '现场最终要求交货日期(系统)'):
                 mat_col = find_field_in_df(src_match, ['物资名称'])
                 if mat_col:
                     src_match = src_match[~src_match[mat_col].astype(str).str.strip().isin(
