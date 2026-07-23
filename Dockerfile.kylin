@@ -1,0 +1,31 @@
+# Debian Bullseye 打包环境 (glibc 2.31, 兼容麒麟V10 SP1+)
+FROM docker.m.daocloud.io/library/python:3.9-slim-bullseye
+
+# 安装 tkinter + 编译工具
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3-tk tk tcl \
+        build-essential \
+        && rm -rf /var/lib/apt/lists/*
+
+# 升级 pip
+RUN pip install --upgrade pip setuptools wheel
+
+# 安装依赖
+RUN pip install \
+    numpy==1.26.4 \
+    pandas==2.2.3 \
+    openpyxl \
+    python-dateutil \
+    six \
+    et-xmlfile \
+    tzdata
+
+# PyInstaller
+RUN pip install pyinstaller==6.20.0
+
+# 验证
+RUN python -c "import tkinter; import pandas; import openpyxl; print('ALL OK')"
+
+WORKDIR /work
+CMD ["bash"]

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+
+# PyInstaller
+build/
+dist/
+dist_deb/
+*.spec
+
+# IDE
+.idea/
+.vscode/
+
+# Docker & env
+.venv/
+pkgs/
+py38_pkgs/
+py39_pkgs/
+python38_stdlib/
+python39-shared/
+python3922_stdlib/
+python3923_stdlib/
+tmp_stdlib/
+tools_libs/
+wheels/
+wheels_py39/
+
+# Large binaries
+*.exe
+*.so
+*.deb
+dist_deb/
+cx
+cx_new_v6_kylin_final
+
+# Shell scripts (but not build_inside_deb.sh)
+*.sh
+!build_inside_deb.sh
+!entrypoint.sh
+
+# Misc
+fix_stdlib/
+操作文档/
+汇总表模板/

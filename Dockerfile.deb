@@ -1,0 +1,24 @@
+# Python 3.10 Bullseye (glibc 2.31, 兼容 UOS)
+FROM docker.m.daocloud.io/library/python:3.10-slim-bullseye
+
+# 第1步：装系统库（已验证成功，会被缓存）
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        tk tcl libx11-6 \
+        && rm -rf /var/lib/apt/lists/*
+
+# 第2步：升级 pip（已验证成功，会被缓存）
+RUN pip install --upgrade 'pip<25' --use-deprecated=legacy-resolver
+
+# 第3步：逐个装包（每个独立layer，失败了只重跑当前）
+RUN pip install numpy
+RUN pip install pandas
+RUN pip install openpyxl
+RUN pip install pyinstaller
+
+# 验证
+RUN python -c "import tkinter; import pandas; import openpyxl; print('ALL OK')" && \
+    ldd --version | head -1
+
+WORKDIR /work
+CMD ["bash"]

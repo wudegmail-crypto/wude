@@ -1,0 +1,60 @@
+name: Build Kylin Binary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build in glibc 2.31 container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/work \
+            -w /work \
+            python:3.9-slim-bullseye bash -c '
+              set -e
+              echo "=== 环境 ==="
+              python --version
+              ldd --version 2>/dev/null | head -1
+
+              echo "=== 安装系统依赖 ==="
+              apt-get update -qq
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends tk tcl libx11-6
+
+              echo "=== 安装 Python 依赖 ==="
+              pip install --quiet pandas openpyxl numpy pyinstaller
+
+              echo "=== 检查依赖 ==="
+              python -c "import tkinter; import pandas; import openpyxl; import numpy; import PyInstaller; print(\"ALL OK\")"
+
+              echo "=== PyInstaller 打包 ==="
+              rm -rf build dist *.spec 2>/dev/null || true
+              pyinstaller --onefile --name cx_new_v6_kylin \
+                --hidden-import tkinter --hidden-import _tkinter \
+                --hidden-import pandas --hidden-import openpyxl --hidden-import numpy \
+                --hidden-import openpyxl.styles --hidden-import openpyxl.utils --hidden-import openpyxl.cell \
+                --clean --noconfirm cx_new_v6_kylin.py
+
+              echo "=== 输出 ==="
+              ls -lh dist/
+            '
+
+      - name: Verify glibc compatibility
+        run: |
+          echo "=== GLIBC 版本要求 ==="
+          strings dist/cx_new_v6_kylin | grep "GLIBC_" | sort -Vu
+          echo "=== 文件信息 ==="
+          file dist/cx_new_v6_kylin
+          ls -lh dist/cx_new_v6_kylin
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cx_new_v6_kylin
+          path: dist/cx_new_v6_kylin

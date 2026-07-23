@@ -1,0 +1,54 @@
+# CentOS 7 打包环境 (glibc 2.17, 兼容麒麟V10全系列)
+FROM docker.m.daocloud.io/library/centos:7
+
+# 1. 修复 CentOS 基础源指向 vault（CentOS 7 已 EOL）
+RUN sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
+    sed -i 's/^# *baseurl=/baseurl=/g' /etc/yum.repos.d/*.repo && \
+    sed -i 's|mirror.centos.org|vault.centos.org|g' /etc/yum.repos.d/*.repo && \
+    sed -i 's|download.fedoraproject.org/pub|archives.fedoraproject.org/pub/archive|g' /etc/yum.repos.d/*.repo
+
+# 2. 安装 EPEL 和 SCL 仓库
+RUN yum install -y epel-release centos-release-scl && \
+    yum clean all
+
+# 3. 再次修复所有仓库（SCL 安装后会新增 repo 文件）
+RUN sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
+    sed -i 's/^# *baseurl=/baseurl=/g' /etc/yum.repos.d/*.repo && \
+    sed -i 's|mirror.centos.org|vault.centos.org|g' /etc/yum.repos.d/*.repo && \
+    sed -i 's|download.fedoraproject.org/pub|archives.fedoraproject.org/pub/archive|g' /etc/yum.repos.d/*.repo && \
+    yum-config-manager --save --setopt='*.skip_if_unavailable=true' 2>/dev/null || true
+
+# 4. 安装 Python 3.9 + tkinter + 编译工具
+RUN yum install -y \
+    rh-python39 \
+    rh-python39-python-devel \
+    rh-python39-python-tkinter \
+    gcc gcc-c++ make \
+    tk tk-devel tcl tcl-devel \
+    libX11 libX11-devel \
+    && yum clean all
+
+# 5. 启用 Python 3.9
+ENV PATH="/opt/rh/rh-python39/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV LD_LIBRARY_PATH="/opt/rh/rh-python39/root/usr/lib64"
+ENV PKG_CONFIG_PATH="/opt/rh/rh-python39/root/usr/lib64/pkgconfig"
+ENV TCL_LIBRARY="/usr/lib64"
+ENV TK_LIBRARY="/usr/lib64"
+
+# 6. 升级 pip 并安装 Python 依赖
+RUN /opt/rh/rh-python39/root/usr/bin/python -m pip install --upgrade pip setuptools wheel && \
+    /opt/rh/rh-python39/root/usr/bin/python -m pip install \
+        numpy==1.26.4 \
+        pandas==2.2.3 \
+        openpyxl==3.1.5 \
+        python-dateutil==2.9.0 \
+        six==1.17.0 \
+        et-xmlfile==2.0.0 \
+        tzdata && \
+    /opt/rh/rh-python39/root/usr/bin/python -m pip install pyinstaller==6.20.0
+
+# 7. 验证模块
+RUN /opt/rh/rh-python39/root/usr/bin/python -c "import tkinter; import pandas; import openpyxl; print('OK: all modules loaded')"
+
+WORKDIR /work
+CMD ["bash"]
