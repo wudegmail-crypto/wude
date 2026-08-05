@@ -416,8 +416,8 @@ class App(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.title("公文格式处理工具 v1.0")
-        self.geometry("760x700")
-        self.minsize(680, 600)
+        self.geometry("760x820")
+        self.minsize(680, 700)
 
         self.preset_key = "gbt_gov"
         self.mode = ctk.StringVar(value="智能一键处理")
