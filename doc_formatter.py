@@ -57,9 +57,15 @@ def fix_punctuation(text):
     chars = list(text)
     for i, ch in enumerate(chars):
         if ch in CN_PUNCT:
-            nearby_cn = (i > 0 and _is_chinese(text[i - 1])) or \
-                       (i < len(text) - 1 and _is_chinese(text[i + 1]))
-            if nearby_cn and not (ch in '.,' and i > 0 and text[i - 1].isdigit()):
+            prev = text[i - 1] if i > 0 else ''
+            nxt = text[i + 1] if i < len(text) - 1 else ''
+            # 数字分隔(千分位/小数/时间如 1,000、3.14、9:00)不转换
+            if ch in '.,:' and prev.isdigit() and nxt.isdigit():
+                continue
+            # 与中文相关才转换:前后是中文,或紧邻闭合/开括号,或后接中文
+            nearby_cn = _is_chinese(prev) or _is_chinese(nxt) or \
+                        prev in '）)]】》' or nxt in '（([【《'
+            if nearby_cn:
                 chars[i] = CN_PUNCT[ch]
 
     # 引号配对
@@ -129,9 +135,13 @@ def check_document(doc, preset):
         if has_cn:
             expected_font = preset['font_cn']
             for run in para.runs:
-                if run.font.name and run.font.name != expected_font:
+                # 读东亚字体(w:eastAsia),而不是西文字体(run.font.name)
+                rpr = run._element.find(qn('w:rPr'))
+                rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
+                east_font = rfonts.get(qn('w:eastAsia')) if rfonts is not None else None
+                if east_font and east_font != expected_font:
                     role = '（标题）' if is_doc_title else '（一级标题）' if is_h1 else ''
-                    issues.append(f"⚠ 第{n}段{role}: 字体'{run.font.name}', 应为'{expected_font}'")
+                    issues.append(f"⚠ 第{n}段{role}: 中文字体'{east_font}', 应为'{expected_font}'")
                     break
 
         if is_doc_title:
@@ -166,7 +176,7 @@ def check_document(doc, preset):
             unit = '磅' if preset['line_spacing_rule'] == 'FIXED' else '倍'
             issues.append(f"⚠ 第{n}段: 行距未设置（默认单倍）, 应为{expected_ls}{unit}")
 
-        if not is_doc_title and not is_h1 and not is_h2:
+        if not is_doc_title and not is_h1 and not is_h2 and not _is_signature(text, i, total_paras):
             if re.match(r'^[一-鿿]+[,，：\s]', text) and len(text) < 30:
                 pass
             else:
@@ -191,10 +201,15 @@ def check_document(doc, preset):
             if h1_should_bold and not any(r.bold for r in para.runs if r.text.strip()):
                 issues.append(f"⚠ 第{n}段（一级标题）: 应加粗（黑体）")
 
-        en_puncts = [',', '.', ';', ':', '?', '!']
-        found = [p for p in en_puncts if text.count(p) > 0]
-        if found:
-            issues.append(f"⚠ 第{n}段: 英文标点混用 {', '.join(f'{p}×{text.count(p)}' for p in found)}")
+        # 标点检查:复用修复引擎规则,避免"处理完自己还说有问题"
+        fixable = []
+        for run in para.runs:
+            fixed = fix_punctuation(run.text)
+            if fixed != run.text:
+                fixable.extend(f"'{a}'→'{b}'" for a, b in zip(run.text, fixed) if a != b)
+        if fixable:
+            shown = ', '.join(fixable[:5]) + ('…' if len(fixable) > 5 else '')
+            issues.append(f"⚠ 第{n}段: 标点可修复 {shown}")
 
     # 落款对齐检查（在尾部段落中判断）
     for i, para in enumerate(doc.paragraphs):
@@ -520,7 +535,12 @@ class App(ctk.CTk):
         else:
             p = filedialog.askdirectory()
             if p:
-                self.output_path.set(p)
+                if self.input_path.get():
+                    # 选了目录后自动拼上文件名,避免输出路径变成纯文件夹
+                    base = os.path.splitext(os.path.basename(self.input_path.get()))[0]
+                    self.output_path.set(os.path.join(p, f"{base}_已处理.docx"))
+                else:
+                    self.output_path.set(p)
 
     def _on_mode_change(self, name):
         descs = {
