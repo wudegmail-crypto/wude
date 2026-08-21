@@ -35,11 +35,11 @@ jobs:
 
               echo "=== PyInstaller 打包 ==="
               rm -rf build dist *.spec 2>/dev/null || true
-              pyinstaller --onefile --name cx_new_v6_kylin \
+              pyinstaller --onefile --name cx_new_v7_kylin \
                 --hidden-import tkinter --hidden-import _tkinter \
                 --hidden-import pandas --hidden-import openpyxl --hidden-import numpy \
                 --hidden-import openpyxl.styles --hidden-import openpyxl.utils --hidden-import openpyxl.cell \
-                --clean --noconfirm cx_new_v6_kylin.py
+                --clean --noconfirm cx_new_v7_kylin.py
 
               echo "=== 输出 ==="
               ls -lh dist/
@@ -48,13 +48,13 @@ jobs:
       - name: Verify glibc compatibility
         run: |
           echo "=== GLIBC 版本要求 ==="
-          strings dist/cx_new_v6_kylin | grep "GLIBC_" | sort -Vu
+          strings dist/cx_new_v7_kylin | grep "GLIBC_" | sort -Vu
           echo "=== 文件信息 ==="
-          file dist/cx_new_v6_kylin
-          ls -lh dist/cx_new_v6_kylin
+          file dist/cx_new_v7_kylin
+          ls -lh dist/cx_new_v7_kylin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cx_new_v6_kylin
-          path: dist/cx_new_v6_kylin
+          name: cx_new_v7_kylin
+          path: dist/cx_new_v7_kylin
