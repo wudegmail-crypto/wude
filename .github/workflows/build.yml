@@ -28,18 +28,24 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends tk tcl libx11-6 binutils
 
               echo "=== 安装 Python 依赖 ==="
-              pip install --quiet pandas openpyxl numpy pyinstaller
+              pip install --quiet pandas openpyxl numpy pyinstaller matplotlib python-docx requests
 
               echo "=== 检查依赖 ==="
-              python -c "import tkinter; import pandas; import openpyxl; import numpy; import PyInstaller; print(\"ALL OK\")"
+              python -c "import tkinter; import pandas; import openpyxl; import numpy; import PyInstaller; import matplotlib; import docx; import requests; print(\"ALL OK\")"
 
               echo "=== PyInstaller 打包 ==="
               rm -rf build dist *.spec 2>/dev/null || true
-              pyinstaller --onefile --name cx_new_v7_kylin \
+              pyinstaller --onefile --name cx_new_v8_kylin \
                 --hidden-import tkinter --hidden-import _tkinter \
                 --hidden-import pandas --hidden-import openpyxl --hidden-import numpy \
                 --hidden-import openpyxl.styles --hidden-import openpyxl.utils --hidden-import openpyxl.cell \
-                --clean --noconfirm cx_new_v7_kylin.py
+                --hidden-import matplotlib --hidden-import matplotlib.pyplot \
+                --hidden-import matplotlib.backends.backend_agg --hidden-import matplotlib.font_manager \
+                --hidden-import PIL --hidden-import PIL.Image \
+                --hidden-import docx --hidden-import docx.oxml --hidden-import docx.oxml.ns \
+                --hidden-import docx.enum.text --hidden-import docx.enum.table --hidden-import docx.shared \
+                --hidden-import requests --hidden-import urllib3 \
+                --clean --noconfirm cx_new_v8_kylin.py
 
               echo "=== 输出 ==="
               ls -lh dist/
@@ -48,13 +54,13 @@ jobs:
       - name: Verify glibc compatibility
         run: |
           echo "=== GLIBC 版本要求 ==="
-          strings dist/cx_new_v7_kylin | grep "GLIBC_" | sort -Vu
+          strings dist/cx_new_v8_kylin | grep "GLIBC_" | sort -Vu
           echo "=== 文件信息 ==="
-          file dist/cx_new_v7_kylin
-          ls -lh dist/cx_new_v7_kylin
+          file dist/cx_new_v8_kylin
+          ls -lh dist/cx_new_v8_kylin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cx_new_v7_kylin
-          path: dist/cx_new_v7_kylin
+          name: cx_new_v8_kylin
+          path: dist/cx_new_v8_kylin
