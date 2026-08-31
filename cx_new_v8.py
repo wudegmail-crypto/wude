@@ -1,4 +1,5 @@
 import re
+import sys
 import os
 import io
 import json
@@ -1743,27 +1744,50 @@ class AIReportError(RuntimeError):
     pass
 
 
+_AI_LOG_PATH = None
+
+
+def _ai_log(msg):
+    """AI报告全链路调试日志(ai_report_debug.log),用于定位乱码/卡死/报错环节"""
+    global _AI_LOG_PATH
+    try:
+        if _AI_LOG_PATH is None:
+            base = (os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
+                    else os.path.dirname(os.path.abspath(__file__)))
+            _AI_LOG_PATH = os.path.join(base, 'ai_report_debug.log')
+        with io.open(_AI_LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
+
+
 def get_app_key(base_url, app_id, app_secret):
     """获取接口凭证appKey(header认证用)"""
+    _ai_log(f"get_app_key: url={base_url} appId={app_id}")
     try:
         r = requests.post(f"{base_url}/extSecret/generateAppKey",
                           json={"appId": app_id, "appSecret": app_secret},
                           verify=False, timeout=30)
     except requests.exceptions.RequestException as e:
+        _ai_log(f"get_app_key FAIL: {e}")
         raise AIReportError(f"无法连接智能体平台: {e}")
     try:
         j = json.loads(r.content.decode('utf-8'))
     except Exception:
+        _ai_log(f"get_app_key 非JSON(响应头Content-Type={r.headers.get('Content-Type')!r}): {r.content[:200]!r}")
         raise AIReportError(f"平台返回非JSON: {r.content.decode('utf-8', 'ignore')[:200]}")
     obj = j.get('resultObject') or {}
     key = obj.get('appKey') if isinstance(obj, dict) else None
     if not key:
+        _ai_log(f"get_app_key 无appKey: {json.dumps(j, ensure_ascii=False)[:200]}")
         raise AIReportError(f"获取appKey失败: {json.dumps(j, ensure_ascii=False)[:200]}")
+    _ai_log(f"get_app_key OK: {key[:12]}...")
     return key
 
 
 def upload_file_to_agent(base_url, headers, agent_id, file_path):
     """上传单个文件到智能体平台,返回上传结果对象(fileId/fileState)"""
+    _ai_log(f"upload start: file={file_path!r} agentId={agent_id}")
     try:
         with open(file_path, 'rb') as f:
             r = requests.post(f"{base_url}/extChatApi/v2/analysis",
@@ -1772,14 +1796,19 @@ def upload_file_to_agent(base_url, headers, agent_id, file_path):
                               files={'files': (os.path.basename(file_path), f)},
                               verify=False, timeout=300)
     except requests.exceptions.RequestException as e:
+        _ai_log(f"upload FAIL: {e}")
         raise AIReportError(f"上传文件失败: {e}")
     try:
         j = json.loads(r.content.decode('utf-8'))
     except Exception:
+        _ai_log(f"upload 非JSON: {r.content[:200]!r}")
         raise AIReportError(f"上传返回非JSON: {r.content.decode('utf-8', 'ignore')[:200]}")
+    _ai_log(f"upload resp: {json.dumps(j, ensure_ascii=False)[:300]}")
     objs = j.get('resultObject') or []
     if not objs or not objs[0].get('fileId'):
+        _ai_log(f"upload 无fileId: {json.dumps(j, ensure_ascii=False)[:300]}")
         raise AIReportError(f"上传未返回fileId: {json.dumps(j, ensure_ascii=False)[:200]}")
+    _ai_log(f"upload OK fileId={objs[0].get('fileId')}")
     return objs[0]
 
 
@@ -1798,12 +1827,17 @@ def wait_file_ready(base_url, headers, agent_id, file_id, timeout_s=180):
             raise AIReportError(f"查询文件状态失败: {e}")
         objs = j.get('resultObject') or []
         st = str(objs[0].get('fileState')) if objs else ''
+        if st != last:
+            _ai_log(f"fileState={st} fileId={file_id}")
         last = st
         if st == '3':
+            _ai_log(f"fileState OK fileId={file_id}")
             return
         if st == '-1':
+            _ai_log(f"fileState FAIL(-1) fileId={file_id}")
             raise AIReportError("文件解析失败(平台无法识别该Excel,可能格式不支持)")
         time.sleep(3)
+    _ai_log(f"fileState TIMEOUT fileId={file_id} last={last}")
     raise AIReportError(f"文件解析超时({timeout_s}秒,最后状态:{last})")
 
 
@@ -1820,17 +1854,22 @@ def chat_with_agent(base_url, headers, agent_id, file_id, prompt, file_name):
         }],
         "agentId": str(agent_id), "stream": False,
     }
+    _ai_log(f"chat send: {json.dumps(body, ensure_ascii=False)[:300]}")
     try:
         r = requests.post(f"{base_url}/extChatApi/v6/chat",
                           headers={**headers, 'Content-Type': 'application/json'},
                           json=body, verify=False, timeout=600)
     except requests.exceptions.RequestException as e:
+        _ai_log(f"chat FAIL: {e}")
         raise AIReportError(f"调用智能体失败: {e}")
+    _ai_log(f"chat http={r.status_code} Content-Type={r.headers.get('Content-Type')!r} "
+            f"Content-Encoding={r.headers.get('Content-Encoding')!r} bytes={len(r.content)}")
     if r.status_code != 200:
         raise AIReportError(f"chat HTTP {r.status_code}: {r.content.decode('utf-8', 'ignore')[:200]}")
     try:
         j = json.loads(r.content.decode('utf-8'))
     except Exception:
+        _ai_log(f"chat 非JSON, 前300字节: {r.content[:300]!r}")
         raise AIReportError(f"智能体返回非JSON: {r.content.decode('utf-8', 'ignore')[:200]}")
     text = ''
     # v6 格式: choices[0].message.content
@@ -1845,7 +1884,9 @@ def chat_with_agent(base_url, headers, agent_id, file_id, prompt, file_name):
                 text = c
                 break
     if not text:
+        _ai_log(f"chat 返回为空: {json.dumps(j, ensure_ascii=False)[:300]}")
         raise AIReportError(f"智能体返回为空: {json.dumps(j, ensure_ascii=False)[:200]}")
+    _ai_log(f"chat OK len={len(text)} '?'数={text.count('?')} 前200: {text[:200]!r}")
     return text
 
 
@@ -2073,6 +2114,7 @@ def process_one_file(file_path, base_url, app_id, app_secret, agent_id, prompt, 
     status(f"{base}: 智能体分析中...")
     text = chat_with_agent(base_url, headers, agent_id, up['fileId'], prompt, base)
     report = parse_report_json(text)
+    _ai_log(f"parse OK title={str(report.get('title', ''))[:60]!r} keys={list(report.keys())}")
     status(f"{base}: 生成Word报告...")
 
     out_dir = os.path.join(os.path.dirname(os.path.abspath(file_path)), "AI报告")
@@ -2084,6 +2126,7 @@ def process_one_file(file_path, base_url, app_id, app_secret, agent_id, prompt, 
         render_word(report, docx_path, tmp_dir)
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+    _ai_log(f"render done: {docx_path}")
     return True, f"{base} 报告已生成", docx_path
 
 
