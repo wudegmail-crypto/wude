@@ -1787,9 +1787,9 @@ def get_app_key(base_url, app_id, app_secret):
     except requests.exceptions.RequestException as e:
         raise AIReportError(f"无法连接智能体平台: {e}")
     try:
-        j = r.json()
+        j = json.loads(r.content.decode('utf-8'))
     except Exception:
-        raise AIReportError(f"平台返回非JSON: {r.text[:200]}")
+        raise AIReportError(f"平台返回非JSON: {r.content.decode('utf-8', 'ignore')[:200]}")
     obj = j.get('resultObject') or {}
     key = obj.get('appKey') if isinstance(obj, dict) else None
     if not key:
@@ -1809,9 +1809,9 @@ def upload_file_to_agent(base_url, headers, agent_id, file_path):
     except requests.exceptions.RequestException as e:
         raise AIReportError(f"上传文件失败: {e}")
     try:
-        j = r.json()
+        j = json.loads(r.content.decode('utf-8'))
     except Exception:
-        raise AIReportError(f"上传返回非JSON: {r.text[:200]}")
+        raise AIReportError(f"上传返回非JSON: {r.content.decode('utf-8', 'ignore')[:200]}")
     objs = j.get('resultObject') or []
     if not objs or not objs[0].get('fileId'):
         raise AIReportError(f"上传未返回fileId: {json.dumps(j, ensure_ascii=False)[:200]}")
@@ -1828,7 +1828,7 @@ def wait_file_ready(base_url, headers, agent_id, file_id, timeout_s=180):
                               headers={**headers, 'Content-Type': 'application/json'},
                               json={"agentId": str(agent_id), "fileIds": [int(file_id)]},
                               verify=False, timeout=30)
-            j = r.json()
+            j = json.loads(r.content.decode('utf-8'))
         except Exception as e:
             raise AIReportError(f"查询文件状态失败: {e}")
         objs = j.get('resultObject') or []
@@ -1862,11 +1862,11 @@ def chat_with_agent(base_url, headers, agent_id, file_id, prompt, file_name):
     except requests.exceptions.RequestException as e:
         raise AIReportError(f"调用智能体失败: {e}")
     if r.status_code != 200:
-        raise AIReportError(f"chat HTTP {r.status_code}: {r.text[:200]}")
+        raise AIReportError(f"chat HTTP {r.status_code}: {r.content.decode('utf-8', 'ignore')[:200]}")
     try:
-        j = r.json()
+        j = json.loads(r.content.decode('utf-8'))
     except Exception:
-        raise AIReportError(f"智能体返回非JSON: {r.text[:200]}")
+        raise AIReportError(f"智能体返回非JSON: {r.content.decode('utf-8', 'ignore')[:200]}")
     text = ''
     # v6 格式: choices[0].message.content
     if j.get('choices') and isinstance(j['choices'], list) and j['choices'][0] \
