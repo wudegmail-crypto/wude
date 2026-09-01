@@ -1748,17 +1748,8 @@ _AI_LOG_PATH = None
 
 
 def _ai_log(msg):
-    """AI报告全链路调试日志(ai_report_debug.log),用于定位乱码/卡死/报错环节"""
-    global _AI_LOG_PATH
-    try:
-        if _AI_LOG_PATH is None:
-            base = (os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
-                    else os.path.dirname(os.path.abspath(__file__)))
-            _AI_LOG_PATH = os.path.join(base, 'ai_report_debug.log')
-        with io.open(_AI_LOG_PATH, 'a', encoding='utf-8') as f:
-            f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
-    except Exception:
-        pass
+    """AI报告调试日志——2026-09-01 已完成乱码定位(v3接口全部正常),日志不再生成"""
+    pass
 
 
 def get_app_key(base_url, app_id, app_secret):
