@@ -1842,7 +1842,10 @@ def wait_file_ready(base_url, headers, agent_id, file_id, timeout_s=180):
 
 
 def chat_with_agent(base_url, headers, agent_id, file_id, prompt, file_name):
-    """调用v6/chat,带文件fileId,非流式,返回智能体文本"""
+    """调用v3/chat,带文件fileId,非流式,返回智能体文本
+    ★2026-09-01 改v3:平台v6非流式有BUG(响应中文全被替换成'?'),
+      麒麟机四交叉实测 v6+stream:false 乱码 / v6+stream:true 正常 / v1+非流式 正常 /
+      v3+非流式+全参数 正常(2026-09-01实测),v3支持files传参且请求体结构与v6一致"""
     # 提示词已配置在智能体平台(见顶部 AI_REPORT_PROMPT 存档),此处只发当前日期+文件引用
     body = {
         "top_p": 0.9, "frequency_penalty": 0.5, "max_tokens": 20000,
@@ -1856,7 +1859,7 @@ def chat_with_agent(base_url, headers, agent_id, file_id, prompt, file_name):
     }
     _ai_log(f"chat send: {json.dumps(body, ensure_ascii=False)[:300]}")
     try:
-        r = requests.post(f"{base_url}/extChatApi/v6/chat",
+        r = requests.post(f"{base_url}/extChatApi/v3/chat",
                           headers={**headers, 'Content-Type': 'application/json'},
                           json=body, verify=False, timeout=600)
     except requests.exceptions.RequestException as e:
