@@ -35,7 +35,7 @@ jobs:
 
               echo "=== PyInstaller 打包 ==="
               rm -rf build dist *.spec 2>/dev/null || true
-              pyinstaller --onefile --name cx_new_v9_kylin \
+              pyinstaller --onefile --name cx_new_v10_kylin \
                 --hidden-import tkinter --hidden-import _tkinter \
                 --hidden-import pandas --hidden-import openpyxl --hidden-import numpy \
                 --hidden-import openpyxl.styles --hidden-import openpyxl.utils --hidden-import openpyxl.cell \
@@ -45,7 +45,7 @@ jobs:
                 --hidden-import docx --hidden-import docx.oxml --hidden-import docx.oxml.ns \
                 --hidden-import docx.enum.text --hidden-import docx.enum.table --hidden-import docx.shared \
                 --hidden-import requests --hidden-import urllib3 \
-                --clean --noconfirm cx_new_v9_kylin.py
+                --clean --noconfirm cx_new_v10_kylin.py
 
               echo "=== 输出 ==="
               ls -lh dist/
@@ -54,13 +54,13 @@ jobs:
       - name: Verify glibc compatibility
         run: |
           echo "=== GLIBC 版本要求 ==="
-          strings dist/cx_new_v9_kylin | grep "GLIBC_" | sort -Vu
+          strings dist/cx_new_v10_kylin | grep "GLIBC_" | sort -Vu
           echo "=== 文件信息 ==="
-          file dist/cx_new_v9_kylin
-          ls -lh dist/cx_new_v9_kylin
+          file dist/cx_new_v10_kylin
+          ls -lh dist/cx_new_v10_kylin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cx_new_v9_kylin
-          path: dist/cx_new_v9_kylin
+          name: cx_new_v10_kylin
+          path: dist/cx_new_v10_kylin
