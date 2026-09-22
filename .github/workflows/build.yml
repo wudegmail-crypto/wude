@@ -14,18 +14,19 @@ jobs:
 
       - name: Build in glibc 2.31 container
         run: |
+          # ★改用完整版(非 slim) bullseye 镜像：基础仍是 Debian 11 / glibc 2.31(兼容麒麟V10)，
+          #   自带 tkinter 与 binutils，**不需要 apt 装任何系统包**。
+          #   不能再走 slim+apt：bullseye 的 LTS 已于 2026-08-31 结束，security 源清理
+          #   导致 libexpat1/ucf/libfreetype6 等大面积 404（2026-09-22 踩到）。
           docker run --rm \
             -v ${{ github.workspace }}:/work \
             -w /work \
-            python:3.9-slim-bullseye bash -c '
+            python:3.9-bullseye bash -c '
               set -e
               echo "=== 环境 ==="
               python --version
               ldd --version 2>/dev/null | head -1
-
-              echo "=== 安装系统依赖 ==="
-              apt-get update -qq
-              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends tk tcl libx11-6 binutils
+              python -c "import tkinter; print(\"tkinter 可用(镜像自带)\")"
 
               echo "=== 安装 Python 依赖 ==="
               pip install --quiet pandas openpyxl numpy pyinstaller matplotlib python-docx requests
